@@ -9,21 +9,21 @@ use tower_http::{cors::CorsLayer, set_header::SetResponseHeaderLayer, trace::Tra
 use db::init_db_pool;
 use routes::auth_routes;
 
-async fn enforce_origin(
-    State(allowed_origin): State<Arc<String>>,
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
-    let origin = req.headers().get("origin").and_then(|v| v.to_str().ok());
+// async fn enforce_origin(
+//     State(allowed_origin): State<Arc<String>>,
+//     req: Request<Body>,
+//     next: Next,
+// ) -> Result<Response, StatusCode> {
+//     let origin = req.headers().get("origin").and_then(|v| v.to_str().ok());
 
-    if let Some(origin) = origin {
-        if origin == allowed_origin.as_str() {
-            return Ok(next.run(req).await);
-        }
-    }
+//     if let Some(origin) = origin {
+//         if origin == allowed_origin.as_str() {
+//             return Ok(next.run(req).await);
+//         }
+//     }
 
-    Err(StatusCode::FORBIDDEN)
-}
+//     Err(StatusCode::FORBIDDEN)
+// }
 
 #[tokio::main]
 async fn main() {
@@ -31,7 +31,7 @@ async fn main() {
     dotenv().ok();
 
     let client_origin = env::var("CLIENT_URL")
-        .unwrap_or_else(|_| "http://localhost:4000".to_string());
+        .unwrap_or_else(|_| "http://localhost:4000".to_string(), "http://13.215.140.44".to_string(),);
     let allowed_origin = Arc::new(client_origin.clone());
 
     let port = env::var("PORT").unwrap_or_else(|_| "5000".to_string());
@@ -54,7 +54,7 @@ async fn main() {
         .layer(Extension(db_pool))
         .route_layer(middleware::from_fn_with_state(
             allowed_origin.clone(),
-            enforce_origin,
+            // enforce_origin,
         ))
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(
