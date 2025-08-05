@@ -1,19 +1,39 @@
-use axum::{http::Method};
+pub mod api;
+mod routes;
+pub mod db;
+
+use axum::{body::Body, extract::State, http::{Method, Request, StatusCode}, middleware::{self, Next}, response::Response, Extension};
 use dotenvy::dotenv;
-use std::env;
-use tower_http::cors::CorsLayer;
-use tower_http::set_header::SetResponseHeaderLayer;
-use tower_http::trace::TraceLayer;
+use std::{env, sync::Arc};
+use tower_http::{cors::CorsLayer, set_header::SetResponseHeaderLayer, trace::TraceLayer,};
+use db::init_db_pool;
 use routes::auth_routes;
 
-mod routes;
+async fn enforce_origin(
+    State(allowed_origin): State<Arc<String>>,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let origin = req.headers().get("origin").and_then(|v| v.to_str().ok());
+
+    if let Some(origin) = origin {
+        if origin == allowed_origin.as_str() {
+            return Ok(next.run(req).await);
+        }
+    }
+
+    Err(StatusCode::FORBIDDEN)
+}
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
     dotenv().ok();
 
-    let client_origin = env::var("CLIENT_URL").unwrap_or_else(|_| "http://localhost:4000".to_string());
+    let client_origin = env::var("CLIENT_URL")
+        .unwrap_or_else(|_| "http://localhost:4000".to_string());
+    let allowed_origin = Arc::new(client_origin.clone());
+
     let port = env::var("PORT").unwrap_or_else(|_| "5000".to_string());
 
     let cors = CorsLayer::new()
@@ -28,7 +48,14 @@ async fn main() {
         ])
         .allow_credentials(true);
 
-    let app = auth_routes::routes() // << All routes centralized here
+    let db_pool = init_db_pool().await;
+
+    let app = auth_routes::routes()
+        .layer(Extension(db_pool))
+        .route_layer(middleware::from_fn_with_state(
+            allowed_origin.clone(),
+            enforce_origin,
+        ))
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(
             axum::http::header::STRICT_TRANSPORT_SECURITY,
