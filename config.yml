@@ -1,0 +1,7 @@
+tunnel: engine-tunnel
+credentials-file: /home/ubuntu/.cloudflared/515324da-5d64-438d-9d85-7a38be2c856c.json
+
+ingress:
+  - hostname: api.reveriontech.com
+    service: http://localhost:8080
+  - service: http_status:404

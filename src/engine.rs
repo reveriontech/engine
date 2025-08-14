@@ -73,11 +73,11 @@ pub mod api;
 mod routes;
 pub mod db;
 
-// use axum::{body::Body, extract::State, http::{Method, Request, StatusCode}, middleware::{self, Next}, response::Response, Extension};
-use axum::{http::Method, Extension};
+use axum::{body::Body, extract::State, http::{Method, Request, StatusCode}, middleware::{self, Next}, response::Response, Extension};
+// use axum::{http::Method, Extension};
 use dotenvy::dotenv;
-// use std::{env, sync::Arc};
-use std::env;
+use std::{env, sync::Arc};
+// use std::env;
 use tower_http::{cors::{CorsLayer, Any}, set_header::SetResponseHeaderLayer, trace::TraceLayer,};
 use db::init_db_pool;
 use routes::auth_routes;
@@ -103,8 +103,8 @@ async fn main() {
     tracing_subscriber::fmt::init();
     dotenv().ok();
 
-    // let client_origin = env::var("CLIENT_URL").unwrap_or_else(|_| "http://localhost:4000".to_string());
-    // let allowed_origin = Arc::new(client_origin.clone());
+    let client_origin = env::var("CLIENT_URL").unwrap_or_else(|_| "http://localhost:4000".to_string());
+    let allowed_origin = Arc::new(client_origin.clone());
 
     let port = env::var("PORT").unwrap_or_else(|_| "5000".to_string());
 
@@ -125,8 +125,7 @@ async fn main() {
     let app = auth_routes::routes()
         .layer(Extension(db_pool))
         // .route_layer(middleware::from_fn_with_state(
-        //     allowed_origin.clone(),
-        //     enforce_origin,
+        //     allowed_origin.clone()
         // ))
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(
